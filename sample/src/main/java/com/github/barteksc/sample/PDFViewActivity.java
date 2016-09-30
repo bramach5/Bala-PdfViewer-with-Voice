@@ -20,6 +20,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.Message;
 import android.provider.OpenableColumns;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -81,6 +82,7 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
     Integer pageNumber = 0;
 
     String pdfFileName;
+    Handler handler;
 
 
 
@@ -128,16 +130,48 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
         });
 
 
-        myHandler = new Handler();
-        myTimer = new Timer();
-        for (i=0; i<3; i++) {
-            myList.add(i);
+        class MyThread implements Runnable {
+
+            public void run() {
+
+                for (int i=0; i<10; i++) {
+                    Message message = Message.obtain();
+                    pdfView.fromAsset(SAMPLE_FILE)
+                            .pages(i)
+                            .load();
+                    try { Thread.sleep(2000); }
+                    catch (InterruptedException e) { e.printStackTrace(); }
+                    message.arg1 = i+1;
+                    handler.sendMessage(message);
+                    try { Thread.sleep(2000); }
+                    catch (InterruptedException e) { e.printStackTrace(); }
+
+                }
+            }
+
         }
-        myListIterator = myList.listIterator();
+
+        Thread thread;
+
+        thread = new Thread(new MyThread());
+        thread.start();
+        handler= new Handler() {
+            public void handleMessage(Message msg) {
+                myString = "Page Number " + String.valueOf(msg.arg1);
+                mytos.speak(myString, TextToSpeech.QUEUE_FLUSH, null);
+            }
+        };
 
 
 
 
+
+
+
+
+
+
+        /*myHandler = new Handler();
            myHandler.postDelayed(new Runnable() {
             public void run() {
                 myString = "Page Number " + String.valueOf(1);
@@ -169,7 +203,7 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
                         .load();
                 mytos.speak(myString, TextToSpeech.QUEUE_FLUSH, null);
             }
-        }, 15000);
+        }, 15000);*/
 
 
     }
