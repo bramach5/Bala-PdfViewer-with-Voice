@@ -18,6 +18,7 @@ package com.github.barteksc.sample;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Message;
@@ -39,6 +40,7 @@ import org.androidannotations.annotations.OnActivityResult;
 import org.androidannotations.annotations.OptionsItem;
 import org.androidannotations.annotations.OptionsMenu;
 import org.androidannotations.annotations.ViewById;
+import org.androidannotations.annotations.res.StringArrayRes;
 
 import android.speech.tts.TextToSpeech;
 
@@ -57,8 +59,10 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
 
     private final static int REQUEST_CODE = 42;
 
-    public static final String SAMPLE_FILE = "Lesson1.pdf";
+    //public static final String SAMPLE_FILE = "Lesson1.pdf";
+    private String SAMPLE_FILE;
     private String myString;
+    private String LESSON;
     private TextToSpeech mytos;
     private Context myContext;
     private Handler myHandler;
@@ -69,6 +73,13 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
     private List<Integer> myList = new ArrayList<Integer>();
     private ListIterator<Integer> myListIterator = null;
     private int tempint;
+    private int numPages;
+    private Cursor listCursor;
+    private int totalcount;
+    private int strLength;
+    private int timeDelay;
+
+
 
 
 
@@ -106,6 +117,14 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
     }
 
     private void displayFromAsset(String assetFileName) {
+
+        LESSON = getIntent().getStringExtra("firstKeyName");
+        SAMPLE_FILE = LESSON + ".pdf";
+
+        //LESSON = "short_a";
+        //SAMPLE_FILE = LESSON + ".pdf";
+
+
         pdfFileName = assetFileName;
 
         pdfView.fromAsset(SAMPLE_FILE)
@@ -129,21 +148,38 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
             }
         });
 
+        DatabaseAccess dbaccess = new DatabaseAccess(myContext);
+        dbaccess.createDataBase();
+        SQLiteDatabase db = dbaccess.getReadableDatabase();
+
+        String tempword = "PageNumber";
+        listCursor = db.query(LESSON, new String[]{"PageNumber", "VoiceOver"}, null, null, null, null, String.format("%s", tempword));
+        numPages = listCursor.getCount();
 
         class MyThread implements Runnable {
 
             public void run() {
 
-                for (int i=0; i<10; i++) {
+                for (int i=0; i<numPages; i++) {
                     Message message = Message.obtain();
                     pdfView.fromAsset(SAMPLE_FILE)
                             .pages(i)
                             .load();
-                    try { Thread.sleep(2000); }
+
+                    listCursor.moveToPosition(i);
+                    myString = listCursor.getString(1);
+                    strLength = myString.length();
+                    timeDelay = (strLength/4)*500;
+
+                    if (strLength < 3) timeDelay = 1000;
+                    else if (timeDelay < 2000) timeDelay = 2000;
+
+
+                    try { Thread.sleep(100); }
                     catch (InterruptedException e) { e.printStackTrace(); }
                     message.arg1 = i+1;
                     handler.sendMessage(message);
-                    try { Thread.sleep(2000); }
+                    try { Thread.sleep(timeDelay); }
                     catch (InterruptedException e) { e.printStackTrace(); }
 
                 }
@@ -152,59 +188,21 @@ public class PDFViewActivity extends AppCompatActivity implements OnPageChangeLi
         }
 
         Thread thread;
-
         thread = new Thread(new MyThread());
         thread.start();
+
+
+
+
         handler= new Handler() {
             public void handleMessage(Message msg) {
-                myString = "Page Number " + String.valueOf(msg.arg1);
+                //myString = "SoL Bala Page Number " + String.valueOf(msg.arg1) + " of " + String.valueOf(msg.arg2);
+                int pageNumber = msg.arg1;
+                //listCursor.moveToPosition(pageNumber);
+                //myString = listCursor.getString(1);
                 mytos.speak(myString, TextToSpeech.QUEUE_FLUSH, null);
             }
         };
-
-
-
-
-
-
-
-
-
-
-        /*myHandler = new Handler();
-           myHandler.postDelayed(new Runnable() {
-            public void run() {
-                myString = "Page Number " + String.valueOf(1);
-                pdfView.fromAsset(SAMPLE_FILE)
-                        .pages(0)
-                        .load();
-                mytos.speak(myString, TextToSpeech.QUEUE_FLUSH, null);
-            }
-        }, 5000);
-
-
-        myHandler = new Handler();
-        myHandler.postDelayed(new Runnable() {
-            public void run() {
-                myString = "Page Number " + String.valueOf(2);
-                pdfView.fromAsset(SAMPLE_FILE)
-                        .pages(1)
-                        .load();
-                mytos.speak(myString, TextToSpeech.QUEUE_FLUSH, null);
-            }
-        }, 10000);
-
-        myHandler = new Handler();
-        myHandler.postDelayed(new Runnable() {
-            public void run() {
-                myString = "Page Number " + String.valueOf(3);
-                pdfView.fromAsset(SAMPLE_FILE)
-                        .pages(2)
-                        .load();
-                mytos.speak(myString, TextToSpeech.QUEUE_FLUSH, null);
-            }
-        }, 15000);*/
-
 
     }
 
